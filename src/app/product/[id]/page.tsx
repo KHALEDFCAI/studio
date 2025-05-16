@@ -1,24 +1,22 @@
 
-// src/app/product/[id]/page.tsx
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { mockProducts } from '@/lib/mockData';
-import type { Product as ProductType } from '@/lib/types'; // Renamed to avoid conflict
+import type { Product as ProductType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProductCard } from '@/components/ProductCard';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Slider } from "@/components/ui/slider"; // Import Slider
+import { Slider } from "@/components/ui/slider";
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, MapPin, Tag, Mail, Info, Star, MessageSquare, Send, ThumbsUp, Search } from 'lucide-react';
+import { DollarSign, MapPin, Tag, Info, Star, MessageSquare, Send, ThumbsUp, Search, ShoppingBag as ShoppingBagIcon } from 'lucide-react';
+import { useBag } from '@/contexts/BagContext';
 
-// Mock comments structure
 interface Comment {
   id: string;
   user: string;
@@ -33,31 +31,36 @@ export default function ProductPage() {
   const productId = params.id as string;
 
   const [product, setProduct] = useState<ProductType | null>(null);
-  const [currentRating, setCurrentRating] = useState<number>(3); // Default rating for slider
+  const [currentRating, setCurrentRating] = useState<number>(3);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
+  const { addToBag } = useBag();
 
   useEffect(() => {
     const foundProduct = mockProducts.find(p => p.id === productId);
     if (foundProduct) {
       setProduct(foundProduct);
-      // Mock initial comments for the product
       setComments([
         { id: 'c1', user: 'User123', avatar: 'https://placehold.co/40x40.png?text=U1', text: 'Great product, exactly as described!', timestamp: '2 days ago' },
         { id: 'c2', user: 'BuyerXYZ', avatar: 'https://placehold.co/40x40.png?text=BX', text: 'Interested. Is the price negotiable?', timestamp: '1 day ago' },
       ]);
     } else {
-      // Handle product not found, e.g., redirect to a 404 page or homepage
-      // router.push('/not-found'); For now, just log
       console.error("Product not found");
+      // Consider redirecting: router.push('/not-found');
     }
   }, [productId, router]);
+
+  const handleAddToBag = () => {
+    if (product) {
+      addToBag(product);
+    }
+  };
 
   const handleAddComment = () => {
     if (newComment.trim() === '') return;
     const newCommentObj: Comment = {
       id: `c${comments.length + 1}`,
-      user: 'CurrentUser', // Simulate current user
+      user: 'CurrentUser', 
       avatar: 'https://placehold.co/40x40.png?text=ME',
       text: newComment,
       timestamp: 'Just now',
@@ -68,35 +71,19 @@ export default function ProductPage() {
 
   const suggestedProducts = useMemo(() => {
     if (!product) return [];
-
     const currentProductTokens = `${product.name.toLowerCase()} ${product.description.toLowerCase()}`.split(/\s+/);
-
     return mockProducts
-      .filter(p => p.id !== product.id) // Exclude the current product
+      .filter(p => p.id !== product.id)
       .map(suggestedP => {
         let score = 0;
-        // Category match
-        if (suggestedP.category === product.category) {
-          score += 5;
-        }
-        // Tag match
-        product.tags.forEach(tag => {
-          if (suggestedP.tags.includes(tag)) {
-            score += 2;
-          }
-        });
-        // Name/description keyword match (simple)
-        const suggestedProductTokens = `${suggestedP.name.toLowerCase()} ${suggestedP.description.toLowerCase()}`.split(/\s+/);
-        currentProductTokens.forEach(token => {
-          if (token.length > 2 && suggestedProductTokens.includes(token)) { // avoid common short words
-            score += 1;
-          }
-        });
+        if (suggestedP.category === product.category) score += 5;
+        product.tags.forEach(tag => { if (suggestedP.tags.includes(tag)) score += 2; });
+        currentProductTokens.forEach(token => { if (token.length > 2 && `${suggestedP.name.toLowerCase()} ${suggestedP.description.toLowerCase()}`.split(/\s+/).includes(token)) score += 1; });
         return { ...suggestedP, relevanceScore: score };
       })
-      .filter(p => p.relevanceScore > 0) // Only include products with some relevance
-      .sort((a, b) => b.relevanceScore - a.relevanceScore) // Sort by score
-      .slice(0, 4); // Take top 4 suggestions
+      .filter(p => p.relevanceScore > 0)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 4);
   }, [product]);
 
   if (!product) {
@@ -106,7 +93,6 @@ export default function ProductPage() {
   return (
     <main className="container mx-auto px-4 py-8 sm:py-12">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-        {/* Left Column: Image and Basic Info */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-xl overflow-hidden">
             <div className="relative w-full h-80 sm:h-96 md:h-[500px] bg-muted">
@@ -114,7 +100,7 @@ export default function ProductPage() {
                 src={product.imageUrl}
                 alt={product.name}
                 layout="fill"
-                objectFit="contain" // Use contain to see the whole image
+                objectFit="contain"
                 className="rounded-t-lg"
                 data-ai-hint={product.imageHint || product.category.toLowerCase()}
               />
@@ -145,46 +131,14 @@ export default function ProductPage() {
               </div>
             </CardContent>
              <CardFooter className="pt-4">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="default" size="lg" className="w-full sm:w-auto">
-                      <Mail className="h-5 w-5 mr-2" /> Contact Seller
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Contact Seller</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {product.sellerEmail ? (
-                          <>
-                            You can reach the seller for "{product.name}" at: <a href={`mailto:${product.sellerEmail}?subject=Inquiry%20about%20${encodeURIComponent(product.name)}`} className="font-medium text-primary underline hover:text-accent">{product.sellerEmail}</a>.
-                            <br />
-                            Remember to be clear and courteous in your communication.
-                          </>
-                        ) : (
-                          "Seller contact information is not available for this product."
-                        )}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Close</AlertDialogCancel>
-                      {product.sellerEmail && (
-                        <AlertDialogAction asChild>
-                          <a href={`mailto:${product.sellerEmail}?subject=Inquiry%20about%20${encodeURIComponent(product.name)}`}>
-                            Open Email App
-                          </a>
-                        </AlertDialogAction>
-                      )}
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <Button variant="default" size="lg" className="w-full sm:w-auto" onClick={handleAddToBag}>
+                  <ShoppingBagIcon className="h-5 w-5 mr-2" /> Add to Bag
+                </Button>
               </CardFooter>
           </Card>
         </div>
 
-        {/* Right Column: Rating, Comments, Suggestions */}
         <div className="lg:col-span-1 space-y-8">
-          {/* Rating Section */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl flex items-center"><ThumbsUp className="mr-2 h-5 w-5 text-primary"/>Rate this Product</CardTitle>
@@ -199,8 +153,8 @@ export default function ProductPage() {
               <Slider
                 defaultValue={[currentRating]}
                 max={5}
-                step={0.5} // Allow half-star ratings
-                min={0.5} // Minimum rating
+                step={0.5}
+                min={0.5}
                 onValueChange={(value) => setCurrentRating(value[0])}
                 aria-label="Product rating slider"
               />
@@ -210,7 +164,6 @@ export default function ProductPage() {
             </CardContent>
           </Card>
 
-          {/* Comments Section */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary"/>Comments ({comments.length})</CardTitle>
@@ -252,7 +205,6 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* Suggested Products Section - Full Width Below */}
       {suggestedProducts.length > 0 && (
         <div className="mt-12 lg:mt-16">
           <Separator className="my-8" />
@@ -269,4 +221,3 @@ export default function ProductPage() {
     </main>
   );
 }
-

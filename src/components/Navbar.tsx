@@ -3,16 +3,25 @@
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from '@/components/ui/input';
-import { Search, User, Home as HomeIcon, ListPlus, Info, ShoppingBag } from 'lucide-react'; // Renamed Home to HomeIcon to avoid conflict
+import { Search, User, Home as HomeIcon, ListPlus, Info, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Button } from './ui/button';
+import { useBag } from '@/contexts/BagContext';
+import { Badge } from './ui/badge';
 
 export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [currentSearchTerm, setCurrentSearchTerm] = useState(searchParams.get('q') || '');
+  const { getBagItemCount } = useBag();
+  const [bagItemCount, setBagItemCount] = useState(0); // Local state for bag count
+
+  // Effect to update local bag item count when context changes
+  useEffect(() => {
+    setBagItemCount(getBagItemCount());
+  }, [getBagItemCount, useBag().bagItems]); // Depend on bagItems to re-trigger count
 
   useEffect(() => {
     setCurrentSearchTerm(searchParams.get('q') || '');
@@ -23,7 +32,6 @@ export function Navbar() {
     if (pathname === '/') {
       router.push(`/?q=${encodeURIComponent(currentSearchTerm)}`);
     } else {
-      // If on another page, redirect to home page with search query
       router.push(`/?q=${encodeURIComponent(currentSearchTerm)}`);
     }
   };
@@ -32,7 +40,6 @@ export function Navbar() {
     setCurrentSearchTerm(event.target.value);
   };
 
-  // Show search bar only on the home page or when a search query is active
   const showSearchBar = pathname === '/' || searchParams.has('q');
 
   const navLinks = [
@@ -72,6 +79,22 @@ export function Navbar() {
             variant="ghost"
             size="icon"
             asChild
+            className="text-primary hover:bg-accent/20 relative"
+            aria-label="Shopping Bag"
+          >
+            <Link href="/bag">
+              <ShoppingBag className="h-6 w-6" />
+              {bagItemCount > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs rounded-full">
+                  {bagItemCount}
+                </Badge>
+              )}
+            </Link>
+          </Button>
+           <Button 
+            variant="ghost"
+            size="icon"
+            asChild
             className="text-primary hover:bg-accent/20"
             aria-label="User profile and authentication"
           >
@@ -93,7 +116,7 @@ interface NavLinkProps {
 }
 
 function NavLink({ href, icon, text, currentPath }: NavLinkProps) {
-  const isActive = currentPath === href || (href === "/" && currentPath.startsWith("/?q=")); // Consider search on home active
+  const isActive = currentPath === href || (href === "/" && currentPath.startsWith("/?q="));
   return (
     <Link 
       href={href} 

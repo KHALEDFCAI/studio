@@ -2,19 +2,25 @@
 "use client";
 
 import Image from 'next/image';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { DollarSign, MapPin, Tag, Mail, Info } from 'lucide-react';
+import { DollarSign, MapPin, Tag, Info, ShoppingBag as ShoppingBagIcon } from 'lucide-react';
+import { useBag } from '@/contexts/BagContext';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const { addToBag } = useBag();
+
+  const handleAddToBag = () => {
+    addToBag(product);
+  };
+
   return (
     <Card className="flex flex-col h-full overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
       <div className="relative w-full h-56">
@@ -62,39 +68,9 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
       </CardContent>
       <CardFooter>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" className="w-full group">
-              <Mail className="h-4 w-4 mr-2 transition-transform group-hover:scale-110" /> Contact Seller
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Contact Seller</AlertDialogTitle>
-              <AlertDialogDescription>
-                {product.sellerEmail ? (
-                  <>
-                    You can reach the seller for "{product.name}" at: <a href={`mailto:${product.sellerEmail}?subject=Inquiry%20about%20${encodeURIComponent(product.name)}`} className="font-medium text-primary underline hover:text-accent">{product.sellerEmail}</a>.
-                    <br />
-                    Remember to be clear and courteous in your communication.
-                  </>
-                ) : (
-                  "Seller contact information is not available for this product."
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Close</AlertDialogCancel>
-              {product.sellerEmail && (
-                <AlertDialogAction asChild>
-                  <a href={`mailto:${product.sellerEmail}?subject=Inquiry%20about%20${encodeURIComponent(product.name)}`}>
-                    Open Email App
-                  </a>
-                </AlertDialogAction>
-              )}
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button variant="default" className="w-full group" onClick={handleAddToBag}>
+            <ShoppingBagIcon className="h-4 w-4 mr-2 transition-transform group-hover:scale-110" /> Add to Bag
+        </Button>
       </CardFooter>
     </Card>
   );
