@@ -45,8 +45,8 @@ export default function ProductPage() {
         { id: 'c2', user: 'BuyerXYZ', avatar: 'https://placehold.co/40x40.png?text=BX', text: 'Interested. Is the price negotiable?', timestamp: '1 day ago' },
       ]);
     } else {
-      console.error("Product not found");
-      // Consider redirecting: router.push('/not-found');
+      // Product not found, the UI will display a message because product state remains null
+      // Consider redirecting: router.push('/not-found'); 
     }
   }, [productId, router]);
 
