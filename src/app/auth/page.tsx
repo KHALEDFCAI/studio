@@ -61,15 +61,14 @@ export default function AuthPage() {
 
   const onSignInSubmit: SubmitHandler<SignInFormData> = async (data) => {
     console.log("Sign In Data:", data);
-    // Simulate API call for sign in
     if (data.email === MOCKED_EXISTING_EMAIL && data.password === MOCKED_PASSWORD) {
       signInForm.reset();
       toast({
         title: "Login Successful!",
         description: "Welcome back!",
       });
-      // In a real app, you would store session/token and user details in context/global state
-      // For this simulation, we'll just navigate. The profile page will use its own mock data.
+      localStorage.setItem('isUserLoggedIn', 'true');
+      window.dispatchEvent(new CustomEvent('authChange'));
       router.push("/profile");
     } else {
       toast({
@@ -83,7 +82,6 @@ export default function AuthPage() {
 
   const onSignUpSubmit: SubmitHandler<SignUpFormData> = async (data) => {
     console.log("Sign Up Data:", data);
-    // Simulate checking if email exists
     if (data.email === MOCKED_EXISTING_EMAIL) {
       signUpForm.setError("email", {
         type: "manual",
@@ -97,15 +95,15 @@ export default function AuthPage() {
       return;
     }
 
-    // Simulate successful sign up
     signUpForm.reset();
     toast({
       title: "Account Created!",
       description: "You have successfully signed up. Welcome to MarketMate!",
     });
-    // In a real app, you would store session/token and user details (like fullName from data.fullName)
-    // For this simulation, we'll just navigate. The profile page will use its own mock data.
-    router.push("/profile"); 
+    localStorage.setItem('isUserLoggedIn', 'true');
+    localStorage.setItem('userProfile', JSON.stringify({ fullName: data.fullName, username: data.username, email: data.email }));
+    window.dispatchEvent(new CustomEvent('authChange'));
+    router.push("/profile");
   };
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);

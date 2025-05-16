@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-// Header removed as Navbar is global
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +15,7 @@ interface UserProfile {
   fullName: string;
   username: string;
   email: string;
-  avatarUrl: string; 
+  avatarUrl: string;
   joinDate: string;
 }
 
@@ -35,27 +34,47 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setMounted(true);
+    // Attempt to load user profile from localStorage (e.g., saved after signup)
+    const storedUserProfile = localStorage.getItem('userProfile');
+    let profileData: Partial<UserProfile> = {};
+    if (storedUserProfile) {
+      try {
+        profileData = JSON.parse(storedUserProfile);
+      } catch (e) {
+        console.error("Failed to parse userProfile from localStorage", e);
+      }
+    }
+
     const mockUser: UserProfile = {
-      fullName: "Demo User",
-      username: "demouser123",
-      email: "demo@marketmate.com",
+      fullName: profileData.fullName || "Demo User",
+      username: profileData.username || "demouser123",
+      email: profileData.email || "demo@marketmate.com",
       joinDate: new Date(new Date().setDate(new Date().getDate()-30)).toLocaleDateString(),
-      avatarUrl: mockAvatars[0],
+      avatarUrl: mockAvatars[currentAvatarIndex], // Use currentAvatarIndex for initial avatar
     };
     setUser(mockUser);
-  }, []);
+  }, [currentAvatarIndex]); // Re-run if avatar index changes
 
   const handleLogout = () => {
-    console.log("User logged out (simulated)");
+    console.log("User logged out");
+    localStorage.removeItem('isUserLoggedIn');
+    localStorage.removeItem('userProfile'); // Clear stored profile data
+    window.dispatchEvent(new CustomEvent('authChange'));
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
-    router.push('/auth'); 
+    router.push('/auth');
   };
 
   const handleChangeProfilePicture = () => {
     const nextIndex = (currentAvatarIndex + 1) % mockAvatars.length;
-    setCurrentAvatarIndex(nextIndex);
+    setCurrentAvatarIndex(nextIndex); // This will trigger the useEffect to update avatarUrl
+    // In a real app, you would also save this preference to the backend.
+    // For simulation, we update localStorage directly if needed or rely on useEffect.
     if (user) {
-      setUser({ ...user, avatarUrl: mockAvatars[nextIndex] });
+        const updatedUser = { ...user, avatarUrl: mockAvatars[nextIndex] };
+        setUser(updatedUser); // Update state immediately for responsiveness
+        // Optionally update localStorage for the avatar part of the profile if you want it to persist more robustly
+        // const storedProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+        // localStorage.setItem('userProfile', JSON.stringify({...storedProfile, avatarUrl: mockAvatars[nextIndex]}));
     }
     toast({
       title: "Profile Picture Updated (Simulated)",
@@ -66,7 +85,6 @@ export default function ProfilePage() {
   if (!mounted || !user) {
     return (
         <div className="flex flex-col min-h-screen bg-background">
-          {/* Navbar is global */}
           <div className="flex flex-grow items-center justify-center">
             <p className="text-lg text-muted-foreground">Loading profile...</p>
           </div>
@@ -75,22 +93,21 @@ export default function ProfilePage() {
   }
 
   return (
-    // Navbar is global
     <main className="flex-grow container mx-auto px-4 py-8 sm:py-12">
       <Card className="w-full max-w-2xl mx-auto shadow-xl rounded-lg overflow-hidden">
         <CardHeader className="text-center pb-6 border-b bg-card">
           <div className="flex flex-col items-center space-y-3 pt-4">
             <div className="relative group">
               <Avatar className="h-28 w-28 border-4 border-primary shadow-md">
-                <AvatarImage 
-                  src={user.avatarUrl} 
-                  alt={user.fullName} 
+                <AvatarImage
+                  src={user.avatarUrl}
+                  alt={user.fullName}
                   data-ai-hint="profile avatar user" />
                 <AvatarFallback>{user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
               </Avatar>
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-background hover:bg-accent/10 border-primary/50 group-hover:opacity-100 opacity-70 transition-opacity"
                 onClick={handleChangeProfilePicture}
                 title="Change profile picture (simulated)"
@@ -129,7 +146,7 @@ export default function ProfilePage() {
                 <Edit3 className="mr-2 h-5 w-5" /> Edit Profile
               </Button>
           </div>
-         
+
           <div className="pt-4 space-y-3">
             <Button onClick={handleLogout} variant="destructive" className="w-full text-lg py-3 h-auto">
               <LogOut className="mr-2 h-5 w-5" /> Logout
@@ -143,6 +160,5 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
     </main>
-    // Footer is now global in layout.tsx
   );
 }

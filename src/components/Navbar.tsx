@@ -16,16 +16,46 @@ export function Navbar() {
   const searchParams = useSearchParams();
   const [currentSearchTerm, setCurrentSearchTerm] = useState(searchParams.get('q') || '');
   const { getBagItemCount } = useBag();
-  const [bagItemCount, setBagItemCount] = useState(0); // Local state for bag count
+  const [bagItemCount, setBagItemCount] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Effect to update local bag item count when context changes
   useEffect(() => {
     setBagItemCount(getBagItemCount());
-  }, [getBagItemCount, useBag().bagItems]); // Depend on bagItems to re-trigger count
+  }, [getBagItemCount, useBag().bagItems]);
 
   useEffect(() => {
     setCurrentSearchTerm(searchParams.get('q') || '');
   }, [searchParams]);
+
+  // Check login state on mount and listen for changes
+  useEffect(() => {
+    const updateLoginState = () => {
+      if (typeof window !== 'undefined') {
+        const loggedInStatus = localStorage.getItem('isUserLoggedIn') === 'true';
+        setIsLoggedIn(loggedInStatus);
+      }
+    };
+
+    updateLoginState(); // Initial check
+
+    window.addEventListener('authChange', updateLoginState);
+    window.addEventListener('storage', (e) => { // Listen for direct localStorage changes from other tabs
+      if (e.key === 'isUserLoggedIn') {
+        updateLoginState();
+      }
+    });
+
+
+    return () => {
+      window.removeEventListener('authChange', updateLoginState);
+      window.removeEventListener('storage', (e) => {
+        if (e.key === 'isUserLoggedIn') {
+          updateLoginState();
+        }
+      });
+    };
+  }, []);
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,6 +77,8 @@ export function Navbar() {
     { href: "/sell-product", icon: <ListPlus className="h-4 w-4 sm:mr-1.5" />, text: "Sell Product" },
     { href: "/about-us", icon: <Info className="h-4 w-4 sm:mr-1.5" />, text: "About Us" },
   ];
+
+  const profileLinkHref = isLoggedIn ? "/profile" : "/auth";
 
   return (
     <nav className="bg-card border-b sticky top-0 z-50 shadow-sm">
@@ -98,7 +130,7 @@ export function Navbar() {
             className="text-primary hover:bg-accent/20"
             aria-label="User profile and authentication"
           >
-            <Link href="/auth">
+            <Link href={profileLinkHref}>
               <User className="h-6 w-6" />
             </Link>
           </Button>
