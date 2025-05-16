@@ -21,25 +21,33 @@ interface BagContextType {
 
 const BagContext = createContext<BagContextType | undefined>(undefined);
 
-const getInitialBagItems = (): BagItem[] => {
-  if (typeof window !== 'undefined') {
-    const storedBag = localStorage.getItem('marketmateBag');
-    try {
-      return storedBag ? JSON.parse(storedBag) : [];
-    } catch (error) {
-      console.error("Error parsing bag from localStorage:", error);
-      return [];
-    }
-  }
-  return [];
-};
-
-
 export const BagProvider = ({ children }: { children: ReactNode }) => {
-  const [bagItems, setBagItems] = useState<BagItem[]>(getInitialBagItems);
+  // Always initialize with an empty array for consistent server/client initial render
+  const [bagItems, setBagItems] = useState<BagItem[]>([]);
   const { toast } = useToast();
 
+  // Effect to load items from localStorage on initial client mount
   useEffect(() => {
+    const storedBag = localStorage.getItem('marketmateBag');
+    if (storedBag) {
+      try {
+        const parsedBag = JSON.parse(storedBag);
+        if (Array.isArray(parsedBag)) { // Basic validation
+          setBagItems(parsedBag);
+        } else {
+          console.error("Stored bag in localStorage was not an array:", parsedBag);
+          localStorage.removeItem('marketmateBag'); // Clear potentially corrupted data
+        }
+      } catch (error) {
+        console.error("Error parsing bag from localStorage on mount:", error);
+        localStorage.removeItem('marketmateBag'); // Clear corrupted data
+      }
+    }
+  }, []); // Empty dependency array ensures this runs once on client mount
+
+  // Effect to save items to localStorage whenever bagItems change
+  useEffect(() => {
+    // This check is good practice, though this effect runs client-side after mount
     if (typeof window !== 'undefined') {
       localStorage.setItem('marketmateBag', JSON.stringify(bagItems));
     }
