@@ -1,11 +1,8 @@
+
 import type { Metadata } from 'next';
-// import { GeistSans } from 'geist/font/sans'; // Removed to fix module not found error
-// import { GeistMono } from 'geist/font/mono'; // Removed to fix module not found error
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-
-// const geistSans = GeistSans; // Removed variable assignment for GeistSans
-// const geistMono = GeistMono; // Removed variable assignment for GeistMono
+import { Navbar } from '@/components/Navbar'; // Import Navbar
 
 export const metadata: Metadata = {
   title: 'MarketMate - Your Used Products Marketplace',
@@ -19,10 +16,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* Removed geistSans.variable and geistMono.variable from className */}
-      <body className="font-sans antialiased">
-        {children}
+      <body className="font-sans antialiased flex flex-col min-h-screen">
+        <Navbar /> {/* Add Navbar here */}
+        <div className="flex-grow">
+          {children}
+        </div>
         <Toaster />
+        <footer className="bg-secondary border-t border-border text-secondary-foreground p-6 text-center text-sm">
+          © {new Date().getFullYear()} MarketMate. All rights reserved. Built with Next.js and Genkit AI.
+        </footer>
       </body>
     </html>
   );
