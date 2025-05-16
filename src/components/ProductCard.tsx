@@ -1,6 +1,8 @@
+
 "use client";
 
 import Image from 'next/image';
+import Link from 'next/link'; // Import Link
 import type { Product } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,16 +18,23 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Card className="flex flex-col h-full overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
       <div className="relative w-full h-56">
-        <Image
-          src={product.imageUrl}
-          alt={product.name}
-          layout="fill"
-          objectFit="cover"
-          data-ai-hint={product.imageHint || product.category.toLowerCase()}
-        />
+        <Link href={`/product/${product.id}`} passHref>
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            layout="fill"
+            objectFit="cover"
+            className="cursor-pointer"
+            data-ai-hint={product.imageHint || product.category.toLowerCase()}
+          />
+        </Link>
       </div>
       <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-semibold tracking-tight">{product.name}</CardTitle>
+        <CardTitle className="text-xl font-semibold tracking-tight">
+          <Link href={`/product/${product.id}`} className="hover:text-primary transition-colors">
+            {product.name}
+          </Link>
+        </CardTitle>
         <div className="flex items-center text-muted-foreground text-sm pt-1">
           <MapPin className="h-4 w-4 mr-1.5" />
           {product.location}
