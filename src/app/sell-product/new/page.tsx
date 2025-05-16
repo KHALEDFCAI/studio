@@ -27,8 +27,13 @@ const productFormSchema = z.object({
   description: z.string().min(20, { message: "Description must be at least 20 characters." }).max(5000, { message: "Description must be 5000 characters or less." }),
   category: z.string().min(1, { message: "Category is required." }),
   price: z.preprocess(
-    (val) => parseFloat(z.string().parse(val)), // Ensure it's a string before parsing
-    z.number({ invalid_type_error: "Price must be a number." }).positive({ message: "Price must be a positive number." })
+    (val) => {
+      // Ensure val is a string, then parse. If it's an empty string, treat as undefined for Zod to catch as invalid.
+      const strVal = z.string().parse(val);
+      if (strVal === "") return undefined; // Let Zod's .positive() catch this
+      return parseFloat(strVal);
+    },
+    z.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." }).positive({ message: "Price must be a positive number." })
   ),
   tags: z.string().optional().describe("Comma-separated tags, e.g., vintage, electronics, handmade"),
 });
@@ -57,7 +62,7 @@ export default function NewProductPage() {
       productName: "",
       description: "",
       category: "",
-      price: undefined, // or 0, depending on preference
+      price: "", // Changed from undefined to ""
       tags: "",
     },
   });
@@ -141,7 +146,7 @@ export default function NewProductPage() {
         id: newProductId,
         name: data.productName,
         description: data.description,
-        price: data.price,
+        price: data.price, // data.price is now a number after Zod validation
         category: data.category,
         location: "User's Location", // Placeholder
         imageUrl: imagePreviews[primaryImageIndex] || 'https://placehold.co/600x400.png', // Use primary image preview
@@ -164,7 +169,7 @@ export default function NewProductPage() {
     // Clean up object URLs
     imagePreviews.forEach(url => URL.revokeObjectURL(url));
 
-    form.reset();
+    form.reset(); // This will reset to new defaultValues, including price: ""
     setImageFiles([]);
     setImagePreviews([]);
     setPrimaryImageIndex(null);
