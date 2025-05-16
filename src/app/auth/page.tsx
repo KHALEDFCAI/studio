@@ -10,6 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 import { LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,9 +40,13 @@ const signUpSchema = z.object({
 });
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
+const MOCKED_EXISTING_EMAIL = "existinguser@example.com";
+
 export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   const signInForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -52,19 +58,44 @@ export default function AuthPage() {
     defaultValues: { username: "", fullName: "", email: "", password: "", confirmPassword: "" },
   });
 
-  const onSignInSubmit: SubmitHandler<SignInFormData> = (data) => {
+  const onSignInSubmit: SubmitHandler<SignInFormData> = async (data) => {
     console.log("Sign In Data:", data);
     // TODO: Implement API call for sign in
-    // e.g., await signInWithEmailAndPassword(auth, data.email, data.password);
-    alert("Sign In Submitted (check console for data). API call not implemented.");
+    // For now, simulate successful login
+    signInForm.reset();
+    toast({
+      title: "Login Successful!",
+      description: "Welcome back!",
+    });
+    router.push("/profile");
   };
 
-  const onSignUpSubmit: SubmitHandler<SignUpFormData> = (data) => {
+  const onSignUpSubmit: SubmitHandler<SignUpFormData> = async (data) => {
     console.log("Sign Up Data:", data);
     // TODO: Implement API call for sign up
-    // e.g., await createUserWithEmailAndPassword(auth, data.email, data.password);
-    // Then, you might want to store additional user info (username, fullName) in your database.
-    alert("Sign Up Submitted (check console for data). API call not implemented.");
+    
+    // Simulate checking if email exists
+    if (data.email === MOCKED_EXISTING_EMAIL) {
+      signUpForm.setError("email", {
+        type: "manual",
+        message: "This email address is already registered.",
+      });
+      toast({
+        title: "Registration Failed",
+        description: "This email address is already registered.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // For now, simulate successful sign up
+    signUpForm.reset();
+    toast({
+      title: "Account Created!",
+      description: "You have successfully signed up. Welcome to MarketMate!",
+    });
+    // In a real app, you might store user details in context/state or fetch them on profile page
+    router.push("/profile"); 
   };
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
@@ -118,9 +149,9 @@ export default function AuthPage() {
                               size="icon"
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                               onClick={togglePasswordVisibility}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
                             >
                               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
                             </Button>
                           </div>
                         </FormControl>
@@ -191,9 +222,9 @@ export default function AuthPage() {
                               size="icon"
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                               onClick={togglePasswordVisibility}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
                             >
                               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
                             </Button>
                           </div>
                         </FormControl>
@@ -219,9 +250,9 @@ export default function AuthPage() {
                               size="icon"
                               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                               onClick={toggleConfirmPasswordVisibility}
+                              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                             >
                               {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              <span className="sr-only">{showConfirmPassword ? "Hide password" : "Show password"}</span>
                             </Button>
                           </div>
                         </FormControl>
@@ -257,5 +288,3 @@ export default function AuthPage() {
     </div>
   );
 }
-
-    
