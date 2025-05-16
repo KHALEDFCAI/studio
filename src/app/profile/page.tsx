@@ -4,66 +4,80 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/Header'; // Assuming you might want a consistent header
+import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, User, LogOut, ShoppingBag, Settings } from 'lucide-react';
+import { Mail, User, LogOut, ShoppingBag, Settings, Edit3, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from "@/hooks/use-toast";
 
-// Mocked user data - in a real app, this would come from context/state or API
 interface UserProfile {
   fullName: string;
   username: string;
   email: string;
-  avatarUrl?: string; // Optional
+  avatarUrl: string; 
   joinDate: string;
 }
 
+// Mock placeholder images for avatar change simulation
+const mockAvatars = [
+  "https://placehold.co/100x100.png?text=User1",
+  "https://placehold.co/100x100.png?text=Pic2",
+  "https://placehold.co/100x100.png?text=NewMe",
+];
+
 export default function ProfilePage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [currentAvatarIndex, setCurrentAvatarIndex] = useState(0);
 
   useEffect(() => {
     setMounted(true);
     // In a real app, you would fetch user data here or check authentication status
-    // For now, we'll use mock data if the user "logs in"
-    // This is a simplified mock, ideally, auth state would be managed globally
+    // For this simulation, we use consistent mock data.
     const mockUser: UserProfile = {
-      fullName: "Demo User",
+      fullName: "Demo User", // This would ideally come from the signup/login process
       username: "demouser123",
-      email: "demo@marketmate.com",
-      joinDate: new Date().toLocaleDateString(), // Or a fixed date
-      avatarUrl: "https://placehold.co/100x100.png"
+      email: "demo@marketmate.com", // This would be the email used to "log in" or "sign up"
+      joinDate: new Date(new Date().setDate(new Date().getDate()-30)).toLocaleDateString(), // Mock a join date
+      avatarUrl: mockAvatars[0],
     };
     setUser(mockUser);
 
-    // If no user (e.g. direct navigation without "login"), redirect to auth
-    // This is a placeholder for proper auth guard
-    // setTimeout(() => { // Adding a slight delay to avoid flash if auth check is fast
-    //   if (!mockUser) { // Replace with actual auth check
-    //     router.push('/auth');
-    //   }
-    // }, 100);
-
-  }, [router]);
+    // Placeholder: If you had a global auth context, you'd check it here.
+    // If (!isAuthenticated) router.push('/auth');
+  }, []);
 
   const handleLogout = () => {
-    // TODO: Implement actual logout logic (clear session, tokens, etc.)
-    console.log("User logged out (mocked)");
-    // setUser(null); // Clear user state
-    router.push('/auth'); // Redirect to auth page after logout
+    // TODO: Implement actual logout logic (clear session, tokens, global state, etc.)
+    console.log("User logged out (simulated)");
+    toast({ title: "Logged Out", description: "You have been successfully logged out." });
+    router.push('/auth'); 
+  };
+
+  const handleChangeProfilePicture = () => {
+    // Simulate changing profile picture
+    // In a real app, this would open a file dialog, handle upload, and update the backend.
+    const nextIndex = (currentAvatarIndex + 1) % mockAvatars.length;
+    setCurrentAvatarIndex(nextIndex);
+    if (user) {
+      setUser({ ...user, avatarUrl: mockAvatars[nextIndex] });
+    }
+    toast({
+      title: "Profile Picture Updated (Simulated)",
+      description: "Your new avatar is now displayed.",
+    });
   };
 
   if (!mounted || !user) {
-    // Basic loading state or redirect
-    // You might want a more sophisticated loading component
     return (
         <div className="flex flex-col min-h-screen bg-background">
          <Header onSearchChange={() => {}} initialSearchTerm="" />
           <div className="flex flex-grow items-center justify-center">
-            <p>Loading profile...</p>
+            <p className="text-lg text-muted-foreground">Loading profile...</p>
           </div>
         </div>
     );
@@ -71,50 +85,69 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header onSearchChange={() => {}} initialSearchTerm="" /> {/* Pass dummy props if Header requires them */}
+      <Header onSearchChange={() => {}} initialSearchTerm="" />
       <main className="flex-grow container mx-auto px-4 py-8 sm:py-12">
-        <Card className="w-full max-w-2xl mx-auto shadow-xl rounded-lg">
-          <CardHeader className="text-center pb-6 border-b">
-            <div className="flex flex-col items-center space-y-3">
-              <Avatar className="h-24 w-24 border-2 border-primary">
-                <AvatarImage src={user.avatarUrl || `https://placehold.co/100x100.png`} alt={user.fullName} data-ai-hint="profile avatar" />
-                <AvatarFallback>{user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
-              </Avatar>
+        <Card className="w-full max-w-2xl mx-auto shadow-xl rounded-lg overflow-hidden">
+          <CardHeader className="text-center pb-6 border-b bg-card">
+            <div className="flex flex-col items-center space-y-3 pt-4">
+              <div className="relative group">
+                <Avatar className="h-28 w-28 border-4 border-primary shadow-md">
+                  <AvatarImage 
+                    src={user.avatarUrl} 
+                    alt={user.fullName} 
+                    data-ai-hint="profile avatar user" />
+                  <AvatarFallback>{user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-background hover:bg-accent/10 border-primary/50 group-hover:opacity-100 opacity-70 transition-opacity"
+                  onClick={handleChangeProfilePicture}
+                  title="Change profile picture (simulated)"
+                >
+                  <ImageIcon className="h-4 w-4 text-primary" />
+                </Button>
+              </div>
               <CardTitle className="text-3xl font-bold text-primary">{user.fullName}</CardTitle>
               <CardDescription className="text-base text-muted-foreground">@{user.username}</CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-foreground">Profile Information</h3>
+          <CardContent className="pt-6 space-y-6 px-6 sm:px-8">
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground border-b pb-2 mb-3">Profile Information</h3>
               <div className="flex items-center text-sm">
-                <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-foreground">{user.email}</span>
+                <Mail className="h-5 w-5 mr-3 text-muted-foreground flex-shrink-0" />
+                <span className="text-foreground truncate" title={user.email}>{user.email}</span>
               </div>
               <div className="flex items-center text-sm">
-                <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                <User className="h-5 w-5 mr-3 text-muted-foreground flex-shrink-0" />
                 <span className="text-foreground">Joined on {user.joinDate}</span>
               </div>
             </div>
 
             <div className="space-y-3">
-               <h3 className="text-lg font-semibold text-foreground">Account Actions</h3>
-                <Button variant="outline" className="w-full justify-start">
-                  <ShoppingBag className="mr-2 h-4 w-4" /> My Listings
+               <h3 className="text-xl font-semibold text-foreground border-b pb-2 mb-3">Account Actions</h3>
+                <Button variant="outline" className="w-full justify-start text-base py-3 h-auto">
+                  <ShoppingBag className="mr-2 h-5 w-5" /> My Listings
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Settings className="mr-2 h-4 w-4" /> Account Settings
+                <Button variant="outline" className="w-full justify-start text-base py-3 h-auto">
+                  <Settings className="mr-2 h-5 w-5" /> Account Settings
+                </Button>
+                <Button variant="outline" className="w-full justify-start text-base py-3 h-auto">
+                  <Edit3 className="mr-2 h-5 w-5" /> Edit Profile
                 </Button>
             </div>
            
-            <Button onClick={handleLogout} variant="destructive" className="w-full mt-6">
-              <LogOut className="mr-2 h-4 w-4" /> Logout
-            </Button>
-             <Button variant="link" className="w-full text-muted-foreground hover:text-primary mt-2" asChild>
-                <Link href="/">
-                 Back to Marketplace
-                </Link>
-            </Button>
+            <div className="pt-4 space-y-3">
+              <Button onClick={handleLogout} variant="destructive" className="w-full text-lg py-3 h-auto">
+                <LogOut className="mr-2 h-5 w-5" /> Logout
+              </Button>
+              <Button variant="link" className="w-full text-muted-foreground hover:text-primary mt-1" asChild>
+                  <Link href="/">
+                   Back to Marketplace
+                  </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </main>

@@ -41,6 +41,7 @@ const signUpSchema = z.object({
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
 const MOCKED_EXISTING_EMAIL = "existinguser@example.com";
+const MOCKED_PASSWORD = "Password123!"; // This is for frontend simulation only. NEVER hardcode passwords in a real app.
 
 export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -60,20 +61,28 @@ export default function AuthPage() {
 
   const onSignInSubmit: SubmitHandler<SignInFormData> = async (data) => {
     console.log("Sign In Data:", data);
-    // TODO: Implement API call for sign in
-    // For now, simulate successful login
-    signInForm.reset();
-    toast({
-      title: "Login Successful!",
-      description: "Welcome back!",
-    });
-    router.push("/profile");
+    // Simulate API call for sign in
+    if (data.email === MOCKED_EXISTING_EMAIL && data.password === MOCKED_PASSWORD) {
+      signInForm.reset();
+      toast({
+        title: "Login Successful!",
+        description: "Welcome back!",
+      });
+      // In a real app, you would store session/token and user details in context/global state
+      // For this simulation, we'll just navigate. The profile page will use its own mock data.
+      router.push("/profile");
+    } else {
+      toast({
+        title: "Login Failed",
+        description: "Invalid email or password.",
+        variant: "destructive",
+      });
+      signInForm.setError("root", { message: "Invalid email or password."});
+    }
   };
 
   const onSignUpSubmit: SubmitHandler<SignUpFormData> = async (data) => {
     console.log("Sign Up Data:", data);
-    // TODO: Implement API call for sign up
-    
     // Simulate checking if email exists
     if (data.email === MOCKED_EXISTING_EMAIL) {
       signUpForm.setError("email", {
@@ -88,13 +97,14 @@ export default function AuthPage() {
       return;
     }
 
-    // For now, simulate successful sign up
+    // Simulate successful sign up
     signUpForm.reset();
     toast({
       title: "Account Created!",
       description: "You have successfully signed up. Welcome to MarketMate!",
     });
-    // In a real app, you might store user details in context/state or fetch them on profile page
+    // In a real app, you would store session/token and user details (like fullName from data.fullName)
+    // For this simulation, we'll just navigate. The profile page will use its own mock data.
     router.push("/profile"); 
   };
 
@@ -159,6 +169,9 @@ export default function AuthPage() {
                       </FormItem>
                     )}
                   />
+                   {signInForm.formState.errors.root && (
+                    <p className="text-sm font-medium text-destructive">{signInForm.formState.errors.root.message}</p>
+                  )}
                   <Button type="submit" className="w-full h-11 text-lg" disabled={signInForm.formState.isSubmitting}>
                     {signInForm.formState.isSubmitting ? "Signing In..." : <> <LogIn className="mr-2 h-5 w-5" /> Sign In </>}
                   </Button>
@@ -170,12 +183,12 @@ export default function AuthPage() {
                 <form onSubmit={signUpForm.handleSubmit(onSignUpSubmit)} className="space-y-4">
                   <FormField
                     control={signUpForm.control}
-                    name="username"
+                    name="fullName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Username</FormLabel>
+                        <FormLabel>Full Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="yourusername" {...field} />
+                          <Input placeholder="Your Full Name" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -183,12 +196,12 @@ export default function AuthPage() {
                   />
                   <FormField
                     control={signUpForm.control}
-                    name="fullName"
+                    name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Full Name</FormLabel>
+                        <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input placeholder="Your Full Name" {...field} />
+                          <Input placeholder="yourusername" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
