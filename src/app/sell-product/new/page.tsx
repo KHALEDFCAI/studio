@@ -17,12 +17,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { mockCategories, mockProducts } from '@/lib/mockData'; // Assuming mockProducts is needed for new ID or something
+import { mockCategories, mockProducts } from '@/lib/mockData'; // Import mockProducts
 import type { Product } from '@/lib/types';
 
 import { UploadCloud, ImagePlus, FileVideo, FileAudio, FileText, Trash2, Star, PlusCircle, DollarSign, TagsIcon } from 'lucide-react';
 
-const NO_CATEGORY_VALUE = "__NONE__"; // Special value for "None" category
+const NO_CATEGORY_VALUE = "__NONE__"; 
 
 const productFormSchema = z.object({
   productName: z.string().min(3, { message: "Product name must be at least 3 characters." }).max(100, { message: "Product name must be 100 characters or less." }),
@@ -31,7 +31,7 @@ const productFormSchema = z.object({
   price: z.preprocess(
     (val) => {
       const strVal = String(val ?? "");
-      if (strVal.trim() === "") return undefined;
+      if (strVal.trim() === "") return undefined; // Let required_error handle empty strings
       const num = parseFloat(strVal);
       return isNaN(num) ? undefined : num;
     },
@@ -39,11 +39,12 @@ const productFormSchema = z.object({
      .positive({ message: "Price must be a positive number." })
   ),
   tags: z.string().optional().describe("Comma-separated tags, e.g., vintage, electronics, handmade"),
+  images: z.any().optional(), // For react-hook-form to register the field, actual validation is manual
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
 
-const MOCKED_USER_EMAIL_FOR_NEW_PRODUCT = "seller1@marketmate.com";
+const MOCKED_USER_EMAIL_FOR_NEW_PRODUCT = "seller1@marketmate.com"; // Simulate logged-in user
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -63,8 +64,8 @@ export default function NewProductPage() {
     defaultValues: {
       productName: "",
       description: "",
-      category: "", // This will be handled by the Select's mapping to NO_CATEGORY_VALUE
-      price: "", 
+      category: "", 
+      price: "" as any, // Initialize as empty string, Zod preprocess will handle it
       tags: "",
     },
   });
@@ -72,12 +73,15 @@ export default function NewProductPage() {
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const filesArray = Array.from(event.target.files);
-      setImageFiles(prevFiles => [...prevFiles, ...filesArray]);
+      const remainingSlots = 5 - imageFiles.length;
+      const filesToAdd = filesArray.slice(0, remainingSlots);
 
-      const newPreviews = filesArray.map(file => URL.createObjectURL(file));
+      setImageFiles(prevFiles => [...prevFiles, ...filesToAdd]);
+
+      const newPreviews = filesToAdd.map(file => URL.createObjectURL(file));
       setImagePreviews(prevPreviews => [...prevPreviews, ...newPreviews]);
 
-      if (primaryImageIndex === null && (imageFiles.length + filesArray.length > 0)) {
+      if (primaryImageIndex === null && (imageFiles.length + filesToAdd.length > 0)) {
         setPrimaryImageIndex(0);
       }
     }
@@ -87,12 +91,12 @@ export default function NewProductPage() {
     setImageFiles(prev => prev.filter((_, i) => i !== index));
     setImagePreviews(prev => {
       const newPreviews = prev.filter((_, i) => i !== index);
-      URL.revokeObjectURL(prev[index]);
+      URL.revokeObjectURL(prev[index]); // Clean up blob URL
       return newPreviews;
     });
 
     if (primaryImageIndex === index) {
-      setPrimaryImageIndex(newPreviews.length > 0 ? 0 : null);
+      setPrimaryImageIndex(imagePreviews.length -1 > 0 ? 0 : null);
     } else if (primaryImageIndex !== null && primaryImageIndex > index) {
       setPrimaryImageIndex(primaryImageIndex - 1);
     }
@@ -140,28 +144,35 @@ export default function NewProductPage() {
     console.log("Audio File:", audioFile?.name || "None");
     console.log("PDF File:", pdfFile?.name || "None");
 
+    // Simulate saving product data
     const newProductId = `mock-${Date.now()}`;
     const newProduct: Product = {
         id: newProductId,
         name: data.productName,
-        description: data.description || "",
-        price: data.price,
+        description: data.description || "No description provided.",
+        price: data.price, // Zod schema ensures this is a number
         category: data.category || "Uncategorized",
-        location: "User's Location", 
-        imageUrl: imagePreviews[primaryImageIndex!] || 'https://placehold.co/600x400.png',
+        location: "User's Location", // Mocked location for now
+        imageUrl: imagePreviews[primaryImageIndex!] || 'https://placehold.co/600x400.png', // Use blob URL for primary image
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
         sellerEmail: MOCKED_USER_EMAIL_FOR_NEW_PRODUCT, 
-        imageHint: data.tags ? data.tags.split(',')[0]?.trim() : (data.category || "item").toLowerCase(),
+        imageHint: data.tags ? data.tags.split(',')[0]?.trim().toLowerCase() : (data.category || "item").toLowerCase(),
     };
-    console.log("Mock Product Object to be saved:", newProduct);
     
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    // Add to the global mockProducts array (for simulation)
+    // IMPORTANT: This is a client-side simulation. Data is not persisted.
+    mockProducts.push(newProduct);
+    console.log("Mock Product Object added to mockProducts:", newProduct);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
 
     toast({
       title: "Product Listed!",
       description: `${data.productName} has been successfully listed for sale.`,
     });
 
+    // Clean up blob URLs after they are "used"
     imagePreviews.forEach(url => URL.revokeObjectURL(url));
 
     form.reset(); 
@@ -173,7 +184,7 @@ export default function NewProductPage() {
     setPdfFile(null);
     setIsSubmitting(false);
 
-    router.push('/sell-product');
+    router.push('/sell-product'); // Redirect to the listings page
   };
 
   return (
@@ -213,6 +224,7 @@ export default function NewProductPage() {
                       <FormControl>
                         <Textarea placeholder="Describe your product in detail (optional)..." {...field} rows={5} />
                       </FormControl>
+                       <FormDescription>Optional. Max 5000 characters.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -240,6 +252,7 @@ export default function NewProductPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                         <FormDescription>Optional.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -273,7 +286,7 @@ export default function NewProductPage() {
                            <Input placeholder="e.g., vintage, cotton, summer (comma-separated, optional)" {...field} className="pl-8" />
                          </div>
                       </FormControl>
-                      <FormDescription>Enter comma-separated tags to help buyers find your product.</FormDescription>
+                      <FormDescription>Optional. Enter comma-separated tags.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -283,7 +296,7 @@ export default function NewProductPage() {
               {/* Image Upload Section */}
               <div className="space-y-4 p-6 border rounded-lg shadow-sm">
                 <h3 className="text-xl font-semibold text-foreground mb-1">Product Images <span className="text-destructive">*</span></h3>
-                <p className="text-sm text-muted-foreground mb-4">Upload up to 5 images. Select one as the primary display image.</p>
+                <p className="text-sm text-muted-foreground mb-4">Upload up to 5 images. Select one as the primary display image. At least one image is required.</p>
                 <FormField
                   control={form.control} 
                   name="images" 
@@ -291,9 +304,9 @@ export default function NewProductPage() {
                     <FormItem>
                       <FormLabel htmlFor="image-upload" className="sr-only">Upload Images</FormLabel>
                       <FormControl>
-                        <Button type="button" variant="outline" asChild className="w-full cursor-pointer">
-                           <Label htmlFor="image-upload" className="flex items-center justify-center gap-2 cursor-pointer">
-                            <ImagePlus className="h-5 w-5" /> Upload Images
+                        <Button type="button" variant="outline" asChild className="w-full cursor-pointer" disabled={imageFiles.length >= 5}>
+                           <Label htmlFor="image-upload" className={`flex items-center justify-center gap-2 ${imageFiles.length >= 5 ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                            <ImagePlus className="h-5 w-5" /> Upload Images ({imageFiles.length}/5)
                            </Label>
                         </Button>
                       </FormControl>
@@ -307,7 +320,7 @@ export default function NewProductPage() {
                           disabled={imageFiles.length >= 5}
                         />
                       {imageFiles.length >= 5 && <FormDescription className="text-destructive">Maximum 5 images allowed.</FormDescription>}
-                      {fieldState.error && <FormMessage>{fieldState.error.message}</FormMessage>}
+                      {/* Manual error display for image requirement can be added here if needed, though form submit validation handles it */}
                     </FormItem>
                   )}
                 />
@@ -331,10 +344,10 @@ export default function NewProductPage() {
                             type="button"
                             variant={primaryImageIndex === index ? "default" : "outline"}
                             size="sm"
-                            className="h-7 px-2 text-xs"
+                            className="h-7 px-2 text-xs bg-background/80 hover:bg-background"
                             onClick={() => handleSetPrimaryImage(index)}
                           >
-                            <Star className={`h-3 w-3 mr-1 ${primaryImageIndex === index ? 'fill-current' : ''}`} /> Primary
+                            <Star className={`h-3 w-3 mr-1 ${primaryImageIndex === index ? 'fill-yellow-400 text-yellow-500' : 'text-muted-foreground'}`} /> Primary
                           </Button>
                         </div>
                          {primaryImageIndex === index && (
@@ -361,8 +374,9 @@ export default function NewProductPage() {
                     </Button>
                     <Input id="video-upload" type="file" accept="video/*" onChange={handleSingleFileChange(setVideoFile)} className="hidden" />
                     {videoFile && <span className="text-sm text-muted-foreground truncate max-w-xs">{videoFile.name}</span>}
+                    {videoFile && <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setVideoFile(null)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
-                  <FormDescription>Max 200MB. (Note: Limit not enforced on client-side)</FormDescription>
+                  <FormDescription>Optional. Max 200MB. (Note: Limit not enforced on client-side)</FormDescription>
                 </FormItem>
 
                 <FormItem>
@@ -375,7 +389,9 @@ export default function NewProductPage() {
                     </Button>
                     <Input id="audio-upload" type="file" accept="audio/*" onChange={handleSingleFileChange(setAudioFile)} className="hidden" />
                     {audioFile && <span className="text-sm text-muted-foreground truncate max-w-xs">{audioFile.name}</span>}
+                    {audioFile && <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAudioFile(null)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
+                   <FormDescription>Optional.</FormDescription>
                 </FormItem>
 
                 <FormItem>
@@ -388,7 +404,9 @@ export default function NewProductPage() {
                     </Button>
                     <Input id="pdf-upload" type="file" accept=".pdf" onChange={handleSingleFileChange(setPdfFile)} className="hidden" />
                     {pdfFile && <span className="text-sm text-muted-foreground truncate max-w-xs">{pdfFile.name}</span>}
+                    {pdfFile && <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPdfFile(null)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
+                   <FormDescription>Optional.</FormDescription>
                 </FormItem>
               </div>
 
@@ -412,4 +430,3 @@ export default function NewProductPage() {
     </main>
   );
 }
-

@@ -1,6 +1,11 @@
+
 import type { Product } from './types';
 
-export const mockProducts: Product[] = [
+// IMPORTANT: mockProducts is changed to 'let' and directly mutated 
+// by other parts of the application (e.g., NewProductPage) for client-side 
+// simulation purposes. In a real application, this would be handled by API calls 
+// to a backend and a proper state management solution.
+export let mockProducts: Product[] = [
   {
     id: '1',
     name: 'Vintage Leather Jacket',
