@@ -22,27 +22,27 @@ import type { Product } from '@/lib/types';
 
 import { UploadCloud, ImagePlus, FileVideo, FileAudio, FileText, Trash2, Star, PlusCircle, DollarSign, TagsIcon } from 'lucide-react';
 
+const NO_CATEGORY_VALUE = "__NONE__"; // Special value for "None" category
+
 const productFormSchema = z.object({
   productName: z.string().min(3, { message: "Product name must be at least 3 characters." }).max(100, { message: "Product name must be 100 characters or less." }),
-  description: z.string().max(5000, { message: "Description must be 5000 characters or less." }).optional(), // Made optional, removed min length
-  category: z.string().optional(), // Made optional
+  description: z.string().max(5000, { message: "Description must be 5000 characters or less." }).optional(),
+  category: z.string().optional(),
   price: z.preprocess(
     (val) => {
-      const strVal = String(val ?? ""); // Ensure string, handle null/undefined by converting to empty string
-      if (strVal.trim() === "") return undefined; // For Zod to catch as required
+      const strVal = String(val ?? "");
+      if (strVal.trim() === "") return undefined;
       const num = parseFloat(strVal);
-      return isNaN(num) ? undefined : num; // Invalid numbers become undefined for Zod to catch
+      return isNaN(num) ? undefined : num;
     },
     z.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." })
      .positive({ message: "Price must be a positive number." })
   ),
   tags: z.string().optional().describe("Comma-separated tags, e.g., vintage, electronics, handmade"),
-  // Note: 'images' field is handled manually, not part of Zod schema for react-hook-form data
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
 
-// Simulate a logged-in user's email
 const MOCKED_USER_EMAIL_FOR_NEW_PRODUCT = "seller1@marketmate.com";
 
 export default function NewProductPage() {
@@ -63,7 +63,7 @@ export default function NewProductPage() {
     defaultValues: {
       productName: "",
       description: "",
-      category: "",
+      category: "", // This will be handled by the Select's mapping to NO_CATEGORY_VALUE
       price: "", 
       tags: "",
     },
@@ -78,7 +78,7 @@ export default function NewProductPage() {
       setImagePreviews(prevPreviews => [...prevPreviews, ...newPreviews]);
 
       if (primaryImageIndex === null && (imageFiles.length + filesArray.length > 0)) {
-        setPrimaryImageIndex(0); // Auto-select first image as primary if none is set
+        setPrimaryImageIndex(0);
       }
     }
   };
@@ -144,9 +144,9 @@ export default function NewProductPage() {
     const newProduct: Product = {
         id: newProductId,
         name: data.productName,
-        description: data.description || "", // Handle optional field
-        price: data.price, // Zod ensures this is a positive number
-        category: data.category || "Uncategorized", // Handle optional field, provide default
+        description: data.description || "",
+        price: data.price,
+        category: data.category || "Uncategorized",
         location: "User's Location", 
         imageUrl: imagePreviews[primaryImageIndex!] || 'https://placehold.co/600x400.png',
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
@@ -183,7 +183,7 @@ export default function NewProductPage() {
           <CardTitle className="text-3xl font-bold tracking-tight text-primary flex items-center">
             <PlusCircle className="mr-3 h-8 w-8" /> List a New Product
           </CardTitle>
-          <CardDescription>Fill in the details below to sell your item on MarketMate. Fields marked with * are required.</CardDescription>
+          <CardDescription>Fill in the details below to sell your item on MarketMate. Fields marked with <span className="text-destructive">*</span> are required.</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -224,14 +224,17 @@ export default function NewProductPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <Select
+                          onValueChange={(value) => field.onChange(value === NO_CATEGORY_VALUE ? "" : value)}
+                          value={field.value === "" || field.value === undefined ? NO_CATEGORY_VALUE : field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a category (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value=""><em>None (No Category)</em></SelectItem>
+                            <SelectItem value={NO_CATEGORY_VALUE}><em>None (No Category)</em></SelectItem>
                             {mockCategories.filter(c => c !== "All").map(cat => (
                               <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                             ))}
@@ -283,7 +286,7 @@ export default function NewProductPage() {
                 <p className="text-sm text-muted-foreground mb-4">Upload up to 5 images. Select one as the primary display image.</p>
                 <FormField
                   control={form.control} 
-                  name="images" // Placeholder, not in Zod schema but good for associating errors if any
+                  name="images" 
                   render={({ fieldState }) => ( 
                     <FormItem>
                       <FormLabel htmlFor="image-upload" className="sr-only">Upload Images</FormLabel>
@@ -304,7 +307,6 @@ export default function NewProductPage() {
                           disabled={imageFiles.length >= 5}
                         />
                       {imageFiles.length >= 5 && <FormDescription className="text-destructive">Maximum 5 images allowed.</FormDescription>}
-                      {/* Manually display errors for image selection if needed via form.setError */}
                       {fieldState.error && <FormMessage>{fieldState.error.message}</FormMessage>}
                     </FormItem>
                   )}
