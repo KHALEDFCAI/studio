@@ -24,18 +24,20 @@ import { UploadCloud, ImagePlus, FileVideo, FileAudio, FileText, Trash2, Star, P
 
 const productFormSchema = z.object({
   productName: z.string().min(3, { message: "Product name must be at least 3 characters." }).max(100, { message: "Product name must be 100 characters or less." }),
-  description: z.string().min(20, { message: "Description must be at least 20 characters." }).max(5000, { message: "Description must be 5000 characters or less." }),
-  category: z.string().min(1, { message: "Category is required." }),
+  description: z.string().max(5000, { message: "Description must be 5000 characters or less." }).optional(), // Made optional, removed min length
+  category: z.string().optional(), // Made optional
   price: z.preprocess(
     (val) => {
-      // Ensure val is a string, then parse. If it's an empty string, treat as undefined for Zod to catch as invalid.
-      const strVal = z.string().parse(val);
-      if (strVal === "") return undefined; // Let Zod's .positive() catch this
-      return parseFloat(strVal);
+      const strVal = String(val ?? ""); // Ensure string, handle null/undefined by converting to empty string
+      if (strVal.trim() === "") return undefined; // For Zod to catch as required
+      const num = parseFloat(strVal);
+      return isNaN(num) ? undefined : num; // Invalid numbers become undefined for Zod to catch
     },
-    z.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." }).positive({ message: "Price must be a positive number." })
+    z.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." })
+     .positive({ message: "Price must be a positive number." })
   ),
   tags: z.string().optional().describe("Comma-separated tags, e.g., vintage, electronics, handmade"),
+  // Note: 'images' field is handled manually, not part of Zod schema for react-hook-form data
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
@@ -62,7 +64,7 @@ export default function NewProductPage() {
       productName: "",
       description: "",
       category: "",
-      price: "", // Changed from undefined to ""
+      price: "", 
       tags: "",
     },
   });
@@ -85,7 +87,6 @@ export default function NewProductPage() {
     setImageFiles(prev => prev.filter((_, i) => i !== index));
     setImagePreviews(prev => {
       const newPreviews = prev.filter((_, i) => i !== index);
-      // Revoke object URL to free memory
       URL.revokeObjectURL(prev[index]);
       return newPreviews;
     });
@@ -132,44 +133,38 @@ export default function NewProductPage() {
     }
 
 
-    // Simulate API call / data processing
-    console.log("Product Data:", data);
+    console.log("Product Form Data (Validated):", data);
     console.log("Image Files:", imageFiles.map(f => f.name));
-    console.log("Primary Image:", imageFiles[primaryImageIndex]?.name || "None");
+    console.log("Primary Image:", imageFiles[primaryImageIndex!]?.name || "None");
     console.log("Video File:", videoFile?.name || "None");
     console.log("Audio File:", audioFile?.name || "None");
     console.log("PDF File:", pdfFile?.name || "None");
 
-    // Construct a mock product to show in console and potentially add to mockData (not done here)
     const newProductId = `mock-${Date.now()}`;
     const newProduct: Product = {
         id: newProductId,
         name: data.productName,
-        description: data.description,
-        price: data.price, // data.price is now a number after Zod validation
-        category: data.category,
-        location: "User's Location", // Placeholder
-        imageUrl: imagePreviews[primaryImageIndex] || 'https://placehold.co/600x400.png', // Use primary image preview
+        description: data.description || "", // Handle optional field
+        price: data.price, // Zod ensures this is a positive number
+        category: data.category || "Uncategorized", // Handle optional field, provide default
+        location: "User's Location", 
+        imageUrl: imagePreviews[primaryImageIndex!] || 'https://placehold.co/600x400.png',
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
         sellerEmail: MOCKED_USER_EMAIL_FOR_NEW_PRODUCT, 
-        imageHint: data.tags ? data.tags.split(',')[0]?.trim() : data.category.toLowerCase(),
+        imageHint: data.tags ? data.tags.split(',')[0]?.trim() : (data.category || "item").toLowerCase(),
     };
     console.log("Mock Product Object to be saved:", newProduct);
-    // In a real app, you'd push `newProduct` and file data to your backend here.
-    // For now, we can add it to the mockProducts array for demonstration if we imported it and had a setter,
-    // but that would require more complex state management or context.
-
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+    
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
 
     toast({
       title: "Product Listed!",
       description: `${data.productName} has been successfully listed for sale.`,
     });
 
-    // Clean up object URLs
     imagePreviews.forEach(url => URL.revokeObjectURL(url));
 
-    form.reset(); // This will reset to new defaultValues, including price: ""
+    form.reset(); 
     setImageFiles([]);
     setImagePreviews([]);
     setPrimaryImageIndex(null);
@@ -188,7 +183,7 @@ export default function NewProductPage() {
           <CardTitle className="text-3xl font-bold tracking-tight text-primary flex items-center">
             <PlusCircle className="mr-3 h-8 w-8" /> List a New Product
           </CardTitle>
-          <CardDescription>Fill in the details below to sell your item on MarketMate.</CardDescription>
+          <CardDescription>Fill in the details below to sell your item on MarketMate. Fields marked with * are required.</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -201,7 +196,7 @@ export default function NewProductPage() {
                   name="productName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Product Name</FormLabel>
+                      <FormLabel>Product Name <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., Vintage Denim Jacket" {...field} />
                       </FormControl>
@@ -216,7 +211,7 @@ export default function NewProductPage() {
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Describe your product in detail..." {...field} rows={5} />
+                        <Textarea placeholder="Describe your product in detail (optional)..." {...field} rows={5} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -229,13 +224,14 @@ export default function NewProductPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
+                              <SelectValue placeholder="Select a category (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value=""><em>None (No Category)</em></SelectItem>
                             {mockCategories.filter(c => c !== "All").map(cat => (
                               <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                             ))}
@@ -250,7 +246,7 @@ export default function NewProductPage() {
                     name="price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Price ($)</FormLabel>
+                        <FormLabel>Price ($) <span className="text-destructive">*</span></FormLabel>
                         <FormControl>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -271,7 +267,7 @@ export default function NewProductPage() {
                        <FormControl>
                         <div className="relative">
                            <TagsIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                           <Input placeholder="e.g., vintage, cotton, summer (comma-separated)" {...field} className="pl-8" />
+                           <Input placeholder="e.g., vintage, cotton, summer (comma-separated, optional)" {...field} className="pl-8" />
                          </div>
                       </FormControl>
                       <FormDescription>Enter comma-separated tags to help buyers find your product.</FormDescription>
@@ -283,12 +279,12 @@ export default function NewProductPage() {
 
               {/* Image Upload Section */}
               <div className="space-y-4 p-6 border rounded-lg shadow-sm">
-                <h3 className="text-xl font-semibold text-foreground mb-1">Product Images</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-1">Product Images <span className="text-destructive">*</span></h3>
                 <p className="text-sm text-muted-foreground mb-4">Upload up to 5 images. Select one as the primary display image.</p>
                 <FormField
-                  control={form.control} // Not strictly necessary for file inputs not in schema
-                  name="images" // Placeholder, not in Zod schema
-                  render={({ fieldState }) => ( // Use fieldState for error display if desired
+                  control={form.control} 
+                  name="images" // Placeholder, not in Zod schema but good for associating errors if any
+                  render={({ fieldState }) => ( 
                     <FormItem>
                       <FormLabel htmlFor="image-upload" className="sr-only">Upload Images</FormLabel>
                       <FormControl>
@@ -304,10 +300,11 @@ export default function NewProductPage() {
                           accept="image/*" 
                           multiple 
                           onChange={handleImageChange} 
-                          className="hidden" // Hidden, triggered by custom button
+                          className="hidden" 
                           disabled={imageFiles.length >= 5}
                         />
                       {imageFiles.length >= 5 && <FormDescription className="text-destructive">Maximum 5 images allowed.</FormDescription>}
+                      {/* Manually display errors for image selection if needed via form.setError */}
                       {fieldState.error && <FormMessage>{fieldState.error.message}</FormMessage>}
                     </FormItem>
                   )}
@@ -352,7 +349,6 @@ export default function NewProductPage() {
               {/* Other File Uploads Section */}
               <div className="space-y-4 p-6 border rounded-lg shadow-sm">
                 <h3 className="text-xl font-semibold text-foreground mb-4">Additional Media (Optional)</h3>
-                {/* Video Upload */}
                 <FormItem>
                   <FormLabel htmlFor="video-upload">Product Video</FormLabel>
                   <div className="flex items-center gap-2">
@@ -367,7 +363,6 @@ export default function NewProductPage() {
                   <FormDescription>Max 200MB. (Note: Limit not enforced on client-side)</FormDescription>
                 </FormItem>
 
-                {/* Audio Upload */}
                 <FormItem>
                   <FormLabel htmlFor="audio-upload">Product Audio</FormLabel>
                    <div className="flex items-center gap-2">
@@ -381,7 +376,6 @@ export default function NewProductPage() {
                   </div>
                 </FormItem>
 
-                {/* PDF Upload */}
                 <FormItem>
                   <FormLabel htmlFor="pdf-upload">Product Document (PDF)</FormLabel>
                   <div className="flex items-center gap-2">
