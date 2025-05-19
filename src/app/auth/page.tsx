@@ -40,8 +40,15 @@ const signUpSchema = z.object({
 });
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
-const MOCKED_EXISTING_EMAIL = "existinguser@example.com";
-const MOCKED_PASSWORD = "Password123!"; // This is for frontend simulation only. NEVER hardcode passwords in a real app.
+const MOCKED_EXISTING_USER = {
+  email: "existinguser@example.com",
+  password: "Password123!",
+  fullName: "Existing User",
+  username: "existinguser",
+  avatarUrl: "https://placehold.co/100x100.png?text=EU" // Specific avatar for mock existing user
+};
+const DEFAULT_AVATAR_PLACEHOLDER = "https://placehold.co/100x100.png?text=User";
+
 
 export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -61,13 +68,21 @@ export default function AuthPage() {
 
   const onSignInSubmit: SubmitHandler<SignInFormData> = async (data) => {
     console.log("Sign In Data:", data);
-    if (data.email === MOCKED_EXISTING_EMAIL && data.password === MOCKED_PASSWORD) {
+    if (data.email === MOCKED_EXISTING_USER.email && data.password === MOCKED_EXISTING_USER.password) {
       signInForm.reset();
       toast({
         title: "Login Successful!",
         description: "Welcome back!",
       });
       localStorage.setItem('isUserLoggedIn', 'true');
+      const userProfile = { 
+        fullName: MOCKED_EXISTING_USER.fullName, 
+        username: MOCKED_EXISTING_USER.username, 
+        email: MOCKED_EXISTING_USER.email,
+        avatarUrl: MOCKED_EXISTING_USER.avatarUrl // Store existing user's avatar
+      };
+      localStorage.setItem('userProfile', JSON.stringify(userProfile));
+      localStorage.setItem('userAvatarUrl', MOCKED_EXISTING_USER.avatarUrl); // Store avatar separately for Navbar quick access
       window.dispatchEvent(new CustomEvent('authChange'));
       router.push("/profile");
     } else {
@@ -82,7 +97,7 @@ export default function AuthPage() {
 
   const onSignUpSubmit: SubmitHandler<SignUpFormData> = async (data) => {
     console.log("Sign Up Data:", data);
-    if (data.email === MOCKED_EXISTING_EMAIL) {
+    if (data.email === MOCKED_EXISTING_USER.email) {
       signUpForm.setError("email", {
         type: "manual",
         message: "This email address is already registered.",
@@ -101,7 +116,14 @@ export default function AuthPage() {
       description: "You have successfully signed up. Welcome to MarketMate!",
     });
     localStorage.setItem('isUserLoggedIn', 'true');
-    localStorage.setItem('userProfile', JSON.stringify({ fullName: data.fullName, username: data.username, email: data.email }));
+    const userProfile = { 
+      fullName: data.fullName, 
+      username: data.username, 
+      email: data.email,
+      avatarUrl: DEFAULT_AVATAR_PLACEHOLDER // Store default avatar for new user
+    };
+    localStorage.setItem('userProfile', JSON.stringify(userProfile));
+    localStorage.setItem('userAvatarUrl', DEFAULT_AVATAR_PLACEHOLDER); // Store avatar separately
     window.dispatchEvent(new CustomEvent('authChange'));
     router.push("/profile");
   };

@@ -9,6 +9,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Button } from './ui/button';
 import { useBag } from '@/contexts/BagContext';
 import { Badge } from './ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'; // Import Avatar components
 
 export function Navbar() {
   const router = useRouter();
@@ -17,7 +18,10 @@ export function Navbar() {
   const [currentSearchTerm, setCurrentSearchTerm] = useState(searchParams.get('q') || '');
   const { getBagItemCount } = useBag();
   const [bagItemCount, setBagItemCount] = useState(0);
+  
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userInitials, setUserInitials] = useState<string>("");
 
   // Effect to update local bag item count when context changes
   useEffect(() => {
@@ -28,30 +32,55 @@ export function Navbar() {
     setCurrentSearchTerm(searchParams.get('q') || '');
   }, [searchParams]);
 
-  // Check login state on mount and listen for changes
+  // Check login state and avatar on mount and listen for changes
   useEffect(() => {
-    const updateLoginState = () => {
+    const updateAuthAndAvatarState = () => {
       if (typeof window !== 'undefined') {
         const loggedInStatus = localStorage.getItem('isUserLoggedIn') === 'true';
         setIsLoggedIn(loggedInStatus);
+
+        if (loggedInStatus) {
+          const avatarUrl = localStorage.getItem('userAvatarUrl');
+          setUserAvatar(avatarUrl);
+          const userProfileString = localStorage.getItem('userProfile');
+          if (userProfileString) {
+            try {
+              const userProfile = JSON.parse(userProfileString);
+              const initials = (userProfile.fullName?.split(' ').map((n: string) => n[0]).join('') || userProfile.username?.substring(0,2) || 'U').toUpperCase();
+              setUserInitials(initials);
+            } catch (e) {
+              console.error("Error parsing userProfile for initials", e);
+              setUserInitials("U");
+            }
+          } else {
+            setUserInitials("U");
+          }
+        } else {
+          setUserAvatar(null);
+          setUserInitials("");
+        }
       }
     };
 
-    updateLoginState(); // Initial check
+    updateAuthAndAvatarState(); // Initial check
 
-    window.addEventListener('authChange', updateLoginState);
-    window.addEventListener('storage', (e) => { // Listen for direct localStorage changes from other tabs
-      if (e.key === 'isUserLoggedIn') {
-        updateLoginState();
+    const handleAuthChange = () => updateAuthAndAvatarState();
+    const handleAvatarChange = () => updateAuthAndAvatarState(); // Re-use same logic for simplicity
+
+    window.addEventListener('authChange', handleAuthChange);
+    window.addEventListener('avatarChange', handleAvatarChange);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'isUserLoggedIn' || e.key === 'userAvatarUrl' || e.key === 'userProfile') {
+        updateAuthAndAvatarState();
       }
     });
 
-
     return () => {
-      window.removeEventListener('authChange', updateLoginState);
+      window.removeEventListener('authChange', handleAuthChange);
+      window.removeEventListener('avatarChange', handleAvatarChange);
       window.removeEventListener('storage', (e) => {
-        if (e.key === 'isUserLoggedIn') {
-          updateLoginState();
+        if (e.key === 'isUserLoggedIn' || e.key === 'userAvatarUrl' || e.key === 'userProfile') {
+          updateAuthAndAvatarState();
         }
       });
     };
@@ -128,10 +157,21 @@ export function Navbar() {
             size="icon"
             asChild
             className="text-primary hover:bg-accent/20"
-            aria-label="User profile and authentication"
+            aria-label="User profile"
           >
             <Link href={profileLinkHref}>
-              <User className="h-6 w-6" />
+              {isLoggedIn && userAvatar ? (
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={userAvatar} alt="User Avatar" data-ai-hint="profile avatar"/>
+                  <AvatarFallback>{userInitials}</AvatarFallback>
+                </Avatar>
+              ) : isLoggedIn ? ( // Logged in but no avatar URL (e.g. error or placeholder not set)
+                 <Avatar className="h-7 w-7">
+                   <AvatarFallback>{userInitials}</AvatarFallback>
+                 </Avatar>
+              ) : ( // Not logged in
+                <User className="h-6 w-6" />
+              )}
             </Link>
           </Button>
         </div>

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, User, LogOut, ShoppingBag, Settings, Edit3, Image as ImageIcon, ListPlus } from 'lucide-react';
+import { Mail, User, LogOut, ShoppingBag, Settings, Edit3, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,7 +32,9 @@ export default function ProfilePage() {
   useEffect(() => {
     setMounted(true);
     const storedUserProfileString = localStorage.getItem('userProfile');
+    const storedAvatarUrl = localStorage.getItem('userAvatarUrl');
     let profileData: Partial<UserProfile> = {};
+
     if (storedUserProfileString) {
       try {
         profileData = JSON.parse(storedUserProfileString);
@@ -45,24 +47,36 @@ export default function ProfilePage() {
       fullName: profileData.fullName || "Demo User",
       username: profileData.username || "demouser123",
       email: profileData.email || "demo@marketmate.com",
-      joinDate: new Date(new Date().setDate(new Date().getDate() - 30)).toLocaleDateString(),
-      avatarUrl: DEFAULT_AVATAR_PLACEHOLDER,
+      joinDate: profileData.joinDate || new Date(new Date().setDate(new Date().getDate() - 30)).toLocaleDateString(),
+      avatarUrl: storedAvatarUrl || profileData.avatarUrl || DEFAULT_AVATAR_PLACEHOLDER,
     };
     setUser(initialUser);
+    
+    // Revoke previous object URL if it exists and it's different from the current one or default
+    if (previousObjectURL && previousObjectURL !== initialUser.avatarUrl && !previousObjectURL.startsWith('https://placehold.co')) {
+        URL.revokeObjectURL(previousObjectURL);
+        setPreviousObjectURL(null);
+    }
+
 
     // Cleanup for the last object URL when component unmounts
     return () => {
-      if (previousObjectURL) {
+      if (previousObjectURL && !previousObjectURL.startsWith('https://placehold.co')) {
         URL.revokeObjectURL(previousObjectURL);
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // previousObjectURL added to deps would cause issues with its own revocation logic
+  }, []); // Only run on mount
 
   const handleLogout = () => {
     console.log("User logged out");
     localStorage.removeItem('isUserLoggedIn');
-    localStorage.removeItem('userProfile'); // Clear stored profile data
+    localStorage.removeItem('userProfile');
+    localStorage.removeItem('userAvatarUrl');
+    if (previousObjectURL && !previousObjectURL.startsWith('https://placehold.co')) {
+      URL.revokeObjectURL(previousObjectURL);
+      setPreviousObjectURL(null);
+    }
     window.dispatchEvent(new CustomEvent('authChange'));
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push('/auth');
@@ -76,21 +90,29 @@ export default function ProfilePage() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
 
-      if (previousObjectURL) {
+      if (previousObjectURL && !previousObjectURL.startsWith('https://placehold.co')) {
         URL.revokeObjectURL(previousObjectURL);
       }
 
       const newObjectURL = URL.createObjectURL(file);
-      setPreviousObjectURL(newObjectURL); // Store for next revocation
+      setPreviousObjectURL(newObjectURL);
 
       setUser(prevUser => {
         if (!prevUser) return null;
-        return { ...prevUser, avatarUrl: newObjectURL };
+        const updatedUser = { ...prevUser, avatarUrl: newObjectURL };
+        // Update userProfile in localStorage as well
+        const storedUserProfileString = localStorage.getItem('userProfile');
+        let currentProfile = {};
+        if (storedUserProfileString) currentProfile = JSON.parse(storedUserProfileString);
+        localStorage.setItem('userProfile', JSON.stringify({...currentProfile, avatarUrl: newObjectURL}));
+        localStorage.setItem('userAvatarUrl', newObjectURL); // Update separate avatar URL item
+        window.dispatchEvent(new CustomEvent('avatarChange')); // Notify Navbar
+        return updatedUser;
       });
-
+      
       toast({
         title: "Profile Picture Updated",
-        description: "Your new profile picture is previewed. This change is local and won't persist on refresh.",
+        description: "Your new profile picture is previewed. This change is local and won't persist on server (simulation).",
       });
     }
   };
@@ -104,6 +126,8 @@ export default function ProfilePage() {
         </div>
     );
   }
+  
+  const userInitials = user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() || user.username.substring(0,2).toUpperCase();
 
   return (
     <main className="flex-grow container mx-auto px-4 py-8 sm:py-12">
@@ -124,7 +148,7 @@ export default function ProfilePage() {
                   src={user.avatarUrl}
                   alt={user.fullName}
                   data-ai-hint="profile avatar user" />
-                <AvatarFallback>{user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <Button
                 variant="outline"
