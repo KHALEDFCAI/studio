@@ -2,7 +2,7 @@
 // src/app/profile/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,41 +19,45 @@ interface UserProfile {
   joinDate: string;
 }
 
-const mockAvatars = [
-  "https://placehold.co/100x100.png?text=User1",
-  "https://placehold.co/100x100.png?text=Pic2",
-  "https://placehold.co/100x100.png?text=NewMe",
-];
+const DEFAULT_AVATAR_PLACEHOLDER = "https://placehold.co/100x100.png?text=User";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [currentAvatarIndex, setCurrentAvatarIndex] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previousObjectURL, setPreviousObjectURL] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    // Attempt to load user profile from localStorage (e.g., saved after signup)
-    const storedUserProfile = localStorage.getItem('userProfile');
+    const storedUserProfileString = localStorage.getItem('userProfile');
     let profileData: Partial<UserProfile> = {};
-    if (storedUserProfile) {
+    if (storedUserProfileString) {
       try {
-        profileData = JSON.parse(storedUserProfile);
+        profileData = JSON.parse(storedUserProfileString);
       } catch (e) {
         console.error("Failed to parse userProfile from localStorage", e);
       }
     }
 
-    const mockUser: UserProfile = {
+    const initialUser: UserProfile = {
       fullName: profileData.fullName || "Demo User",
       username: profileData.username || "demouser123",
       email: profileData.email || "demo@marketmate.com",
-      joinDate: new Date(new Date().setDate(new Date().getDate()-30)).toLocaleDateString(),
-      avatarUrl: mockAvatars[currentAvatarIndex], // Use currentAvatarIndex for initial avatar
+      joinDate: new Date(new Date().setDate(new Date().getDate() - 30)).toLocaleDateString(),
+      avatarUrl: DEFAULT_AVATAR_PLACEHOLDER,
     };
-    setUser(mockUser);
-  }, [currentAvatarIndex]); // Re-run if avatar index changes
+    setUser(initialUser);
+
+    // Cleanup for the last object URL when component unmounts
+    return () => {
+      if (previousObjectURL) {
+        URL.revokeObjectURL(previousObjectURL);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // previousObjectURL added to deps would cause issues with its own revocation logic
 
   const handleLogout = () => {
     console.log("User logged out");
@@ -64,22 +68,31 @@ export default function ProfilePage() {
     router.push('/auth');
   };
 
-  const handleChangeProfilePicture = () => {
-    const nextIndex = (currentAvatarIndex + 1) % mockAvatars.length;
-    setCurrentAvatarIndex(nextIndex); // This will trigger the useEffect to update avatarUrl
-    // In a real app, you would also save this preference to the backend.
-    // For simulation, we update localStorage directly if needed or rely on useEffect.
-    if (user) {
-        const updatedUser = { ...user, avatarUrl: mockAvatars[nextIndex] };
-        setUser(updatedUser); // Update state immediately for responsiveness
-        // Optionally update localStorage for the avatar part of the profile if you want it to persist more robustly
-        // const storedProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-        // localStorage.setItem('userProfile', JSON.stringify({...storedProfile, avatarUrl: mockAvatars[nextIndex]}));
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+
+      if (previousObjectURL) {
+        URL.revokeObjectURL(previousObjectURL);
+      }
+
+      const newObjectURL = URL.createObjectURL(file);
+      setPreviousObjectURL(newObjectURL); // Store for next revocation
+
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        return { ...prevUser, avatarUrl: newObjectURL };
+      });
+
+      toast({
+        title: "Profile Picture Updated",
+        description: "Your new profile picture is previewed. This change is local and won't persist on refresh.",
+      });
     }
-    toast({
-      title: "Profile Picture Updated (Simulated)",
-      description: "Your new avatar is now displayed.",
-    });
   };
 
   if (!mounted || !user) {
@@ -97,6 +110,14 @@ export default function ProfilePage() {
       <Card className="w-full max-w-2xl mx-auto shadow-xl rounded-lg overflow-hidden">
         <CardHeader className="text-center pb-6 border-b bg-card">
           <div className="flex flex-col items-center space-y-3 pt-4">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelected}
+              accept="image/*"
+              className="hidden"
+              aria-label="Upload profile picture"
+            />
             <div className="relative group">
               <Avatar className="h-28 w-28 border-4 border-primary shadow-md">
                 <AvatarImage
@@ -109,8 +130,8 @@ export default function ProfilePage() {
                 variant="outline"
                 size="icon"
                 className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-background hover:bg-accent/10 border-primary/50 group-hover:opacity-100 opacity-70 transition-opacity"
-                onClick={handleChangeProfilePicture}
-                title="Change profile picture (simulated)"
+                onClick={triggerFileInput}
+                title="Change profile picture"
               >
                 <ImageIcon className="h-4 w-4 text-primary" />
               </Button>
