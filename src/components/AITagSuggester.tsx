@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -11,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { suggestTags } from '@/ai/flows/tag-product';
 import { Loader2, Tags, Lightbulb } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link'; // Import Link
 
 const formSchema = z.object({
   description: z.string().min(20, { message: "Description must be at least 20 characters long." }).max(1000, {message: "Description must be 1000 characters or less."}),
@@ -52,7 +54,7 @@ export function AITagSuggester() {
           <Lightbulb className="h-5 w-5 mr-2 text-primary" />
           AI Product Tagger
         </CardTitle>
-        <CardDescription className="text-sm">Enter a product description to get AI-suggested tags.</CardDescription>
+        <CardDescription className="text-sm">Enter a product description to get AI-suggested tags. Click a tag to filter products.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -85,12 +87,19 @@ export function AITagSuggester() {
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             {suggestedTagsList.length > 0 && (
               <div className="space-y-2 w-full pt-2">
-                <h4 className="text-sm font-semibold text-foreground">Suggested Tags:</h4>
+                <h4 className="text-sm font-semibold text-foreground">Suggested Tags (click to filter):</h4>
                 <div className="flex flex-wrap gap-2">
                   {suggestedTagsList.map((tag, index) => (
-                    <Badge key={index} variant="outline" className="px-2.5 py-1 text-sm bg-accent/10 border-accent/50 text-accent-foreground hover:bg-accent/20">
-                      {tag}
-                    </Badge>
+                    <Link key={index} href={`/?q=${encodeURIComponent(tag)}`} passHref legacyBehavior>
+                      <Badge
+                        as="a" // Render Badge as an anchor tag because it's wrapped in Link
+                        className="cursor-pointer rounded-md border border-primary bg-transparent px-3 py-1.5 text-sm text-primary hover:bg-primary hover:text-primary-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        // Adding role="button" and tabIndex for better accessibility if not using `as="a"`
+                        // but `as="a"` within Link is semantically correct.
+                      >
+                        {tag}
+                      </Badge>
+                    </Link>
                   ))}
                 </div>
               </div>
