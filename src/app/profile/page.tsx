@@ -106,7 +106,12 @@ export default function ProfilePage() {
         if (storedUserProfileString) currentProfile = JSON.parse(storedUserProfileString);
         localStorage.setItem('userProfile', JSON.stringify({...currentProfile, avatarUrl: newObjectURL}));
         localStorage.setItem('userAvatarUrl', newObjectURL); // Update separate avatar URL item
-        window.dispatchEvent(new CustomEvent('avatarChange')); // Notify Navbar
+        
+        // Defer event dispatch
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('avatarChange')); // Notify Navbar
+        }, 0);
+        
         return updatedUser;
       });
       
